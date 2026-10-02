@@ -7,9 +7,13 @@ export default async function ShopPage() {
     orderBy: { createdAt: 'desc' },
   })
 
-  // استخراج دسته‌بندی‌های یکتا
-  const categories = Array.from(
-    new Set(products.map((p) => p.category).filter(Boolean))
+  // ✅ تایپ صریح روی آرایه + filter با type guard
+  const categories: string[] = Array.from(
+    new Set(
+      products
+        .map((p: { category: string }) => p.category)
+        .filter((c): c is string => Boolean(c))
+    )
   )
 
   return (
