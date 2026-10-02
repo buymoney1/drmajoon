@@ -138,13 +138,19 @@ export default function EditCategoryForm({ category }: { category: any }) {
     setIsSubmitting(true)
     try {
       const result = await updateCategory(category.id, formData)
+
       if (result?.error) {
         toast.error(result.error)
         setIsSubmitting(false)
-      } else {
-        toast.success('دسته‌بندی با موفقیت ویرایش شد')
+        return
       }
-    } catch {
+
+      toast.success('دسته‌بندی با موفقیت ویرایش شد')
+      router.push('/admin/categories')
+      router.refresh()
+    } catch (error: any) {
+      if (error?.digest?.startsWith('NEXT_REDIRECT')) return
+      console.error('updateCategory error:', error)
       toast.error('خطا در ویرایش')
       setIsSubmitting(false)
     }
@@ -156,14 +162,19 @@ export default function EditCategoryForm({ category }: { category: any }) {
     setIsDeleting(true)
     try {
       const result = await deleteCategory(category.id)
+
       if (result?.error) {
         toast.error(result.error)
         setIsDeleting(false)
-      } else {
-        toast.success('دسته‌بندی حذف شد')
-        router.push('/admin/categories')
+        return
       }
-    } catch {
+
+      toast.success('دسته‌بندی حذف شد')
+      router.push('/admin/categories')
+      router.refresh()
+    } catch (error: any) {
+      if (error?.digest?.startsWith('NEXT_REDIRECT')) return
+      console.error('deleteCategory error:', error)
       toast.error('خطا در حذف')
       setIsDeleting(false)
     }
@@ -314,6 +325,7 @@ export default function EditCategoryForm({ category }: { category: any }) {
 
             {imageUrl && (
               <div className="mt-4 relative w-full h-48 sm:h-56 rounded-[20px] overflow-hidden bg-stone-100 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl}
                   alt="پیش‌نمایش"

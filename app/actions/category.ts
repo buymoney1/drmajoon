@@ -1,109 +1,170 @@
 'use server'
+
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
-// تبدیل نام فارسی به slug انگلیسی
-function generateSlug(name: string): string {
-  return name
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\u0600-\u06FF-]/g, '')
-    .toLowerCase()
+// ==================== Types ====================
+type ActionResult = {
+  success?: boolean
+  error?: string
 }
 
-export async function createCategory(formData: FormData) {
-  const name = formData.get('name') as string
-  const description = formData.get('description') as string
-  const image = formData.get('image') as string
-  const icon = formData.get('icon') as string
-  const color = formData.get('color') as string || 'primary'
-  const order = parseInt(formData.get('order') as string) || 0
+// ==================== Create Category ====================
+export async function createCategory(
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const name = formData.get('name') as string
+    const description = formData.get('description') as string
+    const image = formData.get('image') as string
+    const icon = formData.get('icon') as string
+    const color = (formData.get('color') as string) || 'primary'
+    const order = parseInt(formData.get('order') as string) || 0
 
-  if (!name) {
-    return { error: 'نام دسته‌بندی الزامی است' }
-  }
-
-  // بررسی تکراری نبودن
-  const existing = await prisma.category.findUnique({ where: { name } })
-  if (existing) {
-    return { error: 'دسته‌بندی با این نام قبلاً وجود دارد' }
-  }
-
-  const slug = generateSlug(name)
-
-  await prisma.category.create({
-    data: {
-      name,
-      slug,
-      description: description || null,
-      image: image || null,
-      icon: icon || null,
-      color,
-      order,
-    },
-  })
-
-  revalidatePath('/admin/categories')
-  revalidatePath('/shop')
-  revalidatePath('/')
-  redirect('/admin/categories')
-}
-
-export async function updateCategory(id: string, formData: FormData) {
-  const name = formData.get('name') as string
-  const description = formData.get('description') as string
-  const image = formData.get('image') as string
-  const icon = formData.get('icon') as string
-  const color = formData.get('color') as string
-  const order = parseInt(formData.get('order') as string) || 0
-
-  await prisma.category.update({
-    where: { id },
-    data: {
-      name,
-      slug: generateSlug(name),
-      description: description || null,
-      image: image || null,
-      icon: icon || null,
-      color,
-      order,
-    },
-  })
-
-  revalidatePath('/admin/categories')
-  revalidatePath('/shop')
-  revalidatePath('/')
-  redirect('/admin/categories')
-}
-
-export async function deleteCategory(id: string) {
-  // بررسی: آیا محصولی با این دسته‌بندی وجود دارد؟
-  const category = await prisma.category.findUnique({ where: { id } })
-  if (!category) return
-
-  const productsCount = await prisma.product.count({
-    where: { category: category.name },
-  })
-
-  if (productsCount > 0) {
-    return {
-      error: `نمی‌توان این دسته‌بندی را حذف کرد. ${productsCount} محصول با این دسته‌بندی وجود دارد.`,
+    if (!name) {
+      return { error: 'نام دسته‌بندی اجباری است' }
     }
-  }
 
-  await prisma.category.delete({ where: { id } })
-  revalidatePath('/admin/categories')
-  revalidatePath('/shop')
-  revalidatePath('/')
+    // ساخت slug از نام
+    const slug = name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]+/g, '')
+
+    // چک تکراری نبودن
+    const existing = await prisma.category.findFirst({
+      where: {
+        OR: [{ name }, { slug }],
+      },
+    })
+
+    if (existing) {
+      return { error: 'دسته‌بندی با این نام قبلاً وجود دارد' }
+    }
+
+    await prisma.category.create({
+      data: {
+        name,
+        slug,
+        description: description || null,
+        image: image || null,
+        icon: icon || null,
+        color,
+        order,
+      },
+    })
+
+    revalidatePath('/admin/categories')
+    revalidatePath('/shop')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('createCategory error:', error)
+    return { error: error?.message || 'خطا در افزودن دسته‌بندی' }
+  }
 }
 
-export async function toggleCategoryStatus(id: string, isActive: boolean) {
-  await prisma.category.update({
-    where: { id },
-    data: { isActive: !isActive },
-  })
-  revalidatePath('/admin/categories')
-  revalidatePath('/shop')
-  revalidatePath('/')
+// ==================== Update Category ====================
+export async function updateCategory(
+  id: string,
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const name = formData.get('name') as string
+    const description = formData.get('description') as string
+    const image = formData.get('image') as string
+    const icon = formData.get('icon') as string
+    const color = formData.get('color') as string
+    const order = parseInt(formData.get('order') as string) || 0
+
+    if (!name) {
+      return { error: 'نام دسته‌بندی اجباری است' }
+    }
+
+    // چک تکراری نبودن (به‌جز خود این دسته)
+    const existing = await prisma.category.findFirst({
+      where: {
+        name,
+        NOT: { id },
+      },
+    })
+
+    if (existing) {
+      return { error: 'دسته‌بندی دیگری با این نام وجود دارد' }
+    }
+
+    await prisma.category.update({
+      where: { id },
+      data: {
+        name,
+        description: description || null,
+        image: image || null,
+        icon: icon || null,
+        color,
+        order,
+      },
+    })
+
+    revalidatePath('/admin/categories')
+    revalidatePath(`/admin/categories/${id}/edit`)
+    revalidatePath('/shop')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('updateCategory error:', error)
+    return { error: error?.message || 'خطا در ویرایش دسته‌بندی' }
+  }
+}
+
+// ==================== Delete Category ====================
+export async function deleteCategory(id: string): Promise<ActionResult> {
+  try {
+    // چک: آیا محصولی در این دسته هست؟
+    const category = await prisma.category.findUnique({ where: { id } })
+    if (!category) {
+      return { error: 'دسته‌بندی یافت نشد' }
+    }
+
+    const productsCount = await prisma.product.count({
+      where: { category: category.name },
+    })
+
+    if (productsCount > 0) {
+      return {
+        error: `امکان حذف نیست — ${productsCount} محصول در این دسته وجود دارد`,
+      }
+    }
+
+    await prisma.category.delete({ where: { id } })
+
+    revalidatePath('/admin/categories')
+    revalidatePath('/shop')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('deleteCategory error:', error)
+    return { error: error?.message || 'خطا در حذف دسته‌بندی' }
+  }
+}
+
+// ==================== Toggle Category Status ====================
+export async function toggleCategoryStatus(
+  id: string,
+  isActive: boolean
+): Promise<ActionResult> {
+  try {
+    await prisma.category.update({
+      where: { id },
+      data: { isActive: !isActive },
+    })
+
+    revalidatePath('/admin/categories')
+    revalidatePath('/shop')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('toggleCategoryStatus error:', error)
+    return { error: error?.message || 'خطا در تغییر وضعیت' }
+  }
 }
