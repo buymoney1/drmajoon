@@ -1,0 +1,140 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Product ====================
+model Product {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  price       Int
+  image       String
+  category    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== Article ====================
+model Article {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String
+  image     String?
+  createdAt DateTime @default(now())
+}
+
+// ==================== Customer (CRM) ====================
+model Customer {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  phone         String    @unique
+  province      String
+  city          String
+  address       String
+  postalCode    String?
+  note          String?
+  totalOrders   Int       @default(0)
+  totalSpent    Int       @default(0)
+  lastOrderAt   DateTime?
+  tags          String[]  @default([])
+  source        String    @default("checkout") // checkout, manual, ...
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]
+}
+
+// ==================== Order ====================
+model Order {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  customerId    String      @db.ObjectId
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  customerName  String
+  phone         String
+  province      String
+  city          String
+  address       String
+  postalCode    String?
+  note          String?
+  totalPrice    Int
+  status        String      @default("PENDING")
+  paymentMethod String      @default("online")
+  items         OrderItem[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ==================== OrderItem ====================
+model OrderItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String?  @db.ObjectId
+  name      String
+  price     Int
+  weight    String?
+  quantity  Int
+  type      String   @default("product")
+  orderId   String   @db.ObjectId
+  order     Order    @relation(fields: [orderId], references: [id])
+}
+
+// ==================== MixItem ====================
+model MixItem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  price       Int
+  image       String
+  category    String   @default("عمومی")
+  benefits    String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== Problem ====================
+model Problem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  icon        String
+  color       String
+  items       String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ==================== Category ====================
+model Category {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  image       String?
+  icon        String?
+  color       String   @default("primary")
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== Media ====================
+model Media {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename     String
+  originalName String
+  url          String
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  alt          String?
+  createdAt    DateTime @default(now())
+}
